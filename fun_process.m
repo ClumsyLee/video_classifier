@@ -12,8 +12,8 @@
 
 %% edit your own code in this file, leave the function interface unmodified
 
-function    [group_rst, feature]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst)
-    
+function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst)
+
     %camera and move feature
     feature = zeros(5,1); 
     
@@ -66,7 +66,11 @@ function    [group_rst, feature]   =   fun_process(dat_vid, dat_aud, img_dir, pr
     feature(2) = cut_transform/(cut_transform+gradual_transform);
     transform_point = [1 find(over_th == 1)'*5+1 dat_vid.nrFramesTotal];
     key_frame = uint8((transform_point(1:min(end,4)-1) + transform_point(2:min(end,4)))/2);
- 
+    if length(key_frame) == 1
+        key_frame = [key_frame min(10,dat_vid.nrFramesTotal) max(1,dat_vid.nrFramesTotal-10)];
+    elseif length(key_frame) == 2
+        key_frame = [key_frame floor((1+dat_vid.nrFramesTotal)/2)];
+    end
     %% color and material feature
  
     % static feature
@@ -129,4 +133,7 @@ function    [group_rst, feature]   =   fun_process(dat_vid, dat_aud, img_dir, pr
     feature(4) = sum((omiga_var < mean(omiga_var)*0.8) & (omiga_mean < mean(omiga_mean)*0.8))/dat_vid.nrFramesTotal;
     feature(5) = sum(rgb_diff)/dat_vid.nrFramesTotal;
 
+    output = [feature;color_hist_max;color_hist_var; ...
+    v_mean;s_mean;v_over;s_over;contrast;similarity; ...
+    energy;entropy;correlation];
 end
