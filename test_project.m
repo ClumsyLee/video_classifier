@@ -28,27 +28,28 @@ end
 
 N_traindata  =   30;
 N_testdata   =   15;
-dir1 = dir('D:\1014\');
-dir2 = dir('D:\1019\');
-dir3 = dir('D:\1016\');
+dir1 = dir('D:/1014/*.ogv');
+dir2 = dir('D:/1019/*.ogv');
+dir3 = dir('D:/1016/*.ogv');
 filenames   =   cell(N_traindata, 1);
 testnames   =   cell(N_testdata, 1);
 for times = 1:10
-    filenames{times} = ['D:\1014\' dir1(2+times).name];
-    filenames{times+10} = ['D:\1019\' dir2(2+times).name];
-    filenames{times+20} = ['D:\1016\' dir3(2+times).name];
+    filenames{times} = ['D:/1014/' dir1(2+times).name];
+    filenames{times+10} = ['D:/1019/' dir2(2+times).name];
+    filenames{times+20} = ['D:/1016/' dir3(2+times).name];
 end
 for times = 1:5
-    testnames{times} = ['D:\1014\' dir1(15+times).name];
-    testnames{times+5} = ['D:\1019\' dir2(15+times).name];
-    testnames{times+10} = ['D:\1016\' dir3(15+times).name];
+    testnames{times} = ['D:/1014/' dir1(15+times).name];
+    testnames{times+5} = ['D:/1019/' dir2(15+times).name];
+    testnames{times+10} = ['D:/1016/' dir3(15+times).name];
 end
 
 groups_std  =   zeros(N_traindata, 1);
 groups_std(1:10)   =   1014;
 groups_std(11:20)   =   1019;
 groups_std(21:30)   =   1016;
-
+trainingData = [];
+labelData = [];
 %% process results
 
 groups_rst  =   zeros(N_traindata, 1);
@@ -57,6 +58,7 @@ time_used   =   zeros(N_traindata, 1);
 prev_rst    =   -1;
 global  img_dir;
 for i_testdata = 1 : N_traindata
+    disp(['training -- i_testdata' int2str(i_testdata)]);
     filename    =   filenames{i_testdata};
     group_std   =   groups_std(i_testdata);
 
@@ -74,16 +76,18 @@ for i_testdata = 1 : N_traindata
     dat_vid.filename        =   filename;
 
     % call function process
-    mysvm = cv.SVM;
     tic;
     [group_rst,output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst);
     time_used(i_testdata)   =   toc / dat_vid.totalDuration;
     groups_rst(i_testdata)  =   group_rst;
-    mysvm.trainAuto(single(output),group_std);
+    trainingData = [trainingData; output];
+    labelData = [labelData; group_std]; 
     % update previous group result
     prev_rst    =   group_std;
 end
-
+save 'feature.mat' trainingData labelData
+mysvm = cv.SVM();
+mysvm.train(double(trainingData), int32(labelData));
 groups_std  =   zeros(N_testdata, 1);
 groups_std(1:5)   =   1014;
 groups_std(6:10)   =   1019;
@@ -91,6 +95,7 @@ groups_std(11:15)   =   1016;
 result_record = zeros(15,1);
 
 for i_testdata = 1 : N_testdata
+    disp(['predicting -- i_testdata' int2str(i_testdata)]);
     filename    =   testnames{i_testdata};
     group_std   =   groups_std(i_testdata);
 
@@ -113,7 +118,7 @@ for i_testdata = 1 : N_testdata
     [group_rst,output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst);
     time_used(i_testdata)   =   toc / dat_vid.totalDuration;
     groups_rst(i_testdata)  =   group_rst;
-    [result,~] = mysvm.predict(single(output));
+    result = mysvm.predict(double(output));
     result_record(i_testdata) = result;
     % update previous group result
     prev_rst    =   group_std;

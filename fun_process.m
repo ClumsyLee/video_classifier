@@ -135,5 +135,5 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
 
     output = [feature;color_hist_max;color_hist_var; ...
     v_mean;s_mean;v_over;s_over;contrast;similarity; ...
-    energy;entropy;correlation];
+    energy;entropy;correlation]';
 end
