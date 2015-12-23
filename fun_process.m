@@ -13,7 +13,7 @@
 %% edit your own code in this file, leave the function interface unmodified
 
 function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst)
-
+    totalFrames = min(5000, dat_vid.nrFramesTotal);
     %camera and move feature
     feature = zeros(5,1); 
     
@@ -23,17 +23,17 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
     % use mexopencv to process image
     %% camera feature
 
-    gray_delta = zeros(length(6:5:dat_vid.nrFramesTotal),1);
-    v_var = zeros(floor(dat_vid.nrFramesTotal/5), 1);
-    v_mean_total = zeros(floor(dat_vid.nrFramesTotal/5), 1);
-    rgb_diff = zeros(floor(dat_vid.nrFramesTotal/5),1);
+    gray_delta = zeros(length(6:5:totalFrames),1);
+    v_var = zeros(floor(totalFrames/5), 1);
+    v_mean_total = zeros(floor(totalFrames/5), 1);
+    rgb_diff = zeros(floor(totalFrames/5),1);
     last_rgb = imread([img_dir, num2str(1, '%06d.jpg')]);
     last_img = rgb2gray(last_rgb);
     hsv = reshape(cv.cvtColor(last_rgb, 'RGB2HSV'),[dat_vid.height*dat_vid.width 3]);
     last_rgb = reshape(last_rgb, [dat_vid.height*dat_vid.width 3]);
     v_mean_total(1) = mean(hsv(:,3));
     v_var(1) = var(double(hsv(:,3)));
-    for turn = 6:5:dat_vid.nrFramesTotal
+    for turn = 6:5:totalFrames
         img = imread([img_dir, num2str(turn, '%06d.jpg')]);
         hsv = reshape(cv.cvtColor(img, 'RGB2HSV'),[dat_vid.height*dat_vid.width 3]);
         gray_img = rgb2gray(img);
@@ -63,13 +63,17 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
         end
     end
     feature(1) = sum(over_th)/dat_vid.totalDuration;
-    feature(2) = cut_transform/(cut_transform+gradual_transform);
-    transform_point = [1 find(over_th == 1)'*5+1 dat_vid.nrFramesTotal];
+    if cut_transform+gradual_transform > 0
+        feature(2) = cut_transform/(cut_transform+gradual_transform);
+    else
+        feature(2) = 0;
+    end
+    transform_point = [1 find(over_th == 1)'*5+1 totalFrames];
     key_frame = uint8((transform_point(1:min(end,4)-1) + transform_point(2:min(end,4)))/2);
     if length(key_frame) == 1
-        key_frame = [key_frame min(10,dat_vid.nrFramesTotal) max(1,dat_vid.nrFramesTotal-10)];
+        key_frame = [key_frame min(10,totalFrames) max(1,totalFrames-10)];
     elseif length(key_frame) == 2
-        key_frame = [key_frame floor((1+dat_vid.nrFramesTotal)/2)];
+        key_frame = [key_frame floor((1+totalFrames)/2)];
     end
     %% color and material feature
  
@@ -129,9 +133,9 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
 
     omiga_mean = abs(v_mean_total(1:end-1) - v_mean_total(2:end));
     omiga_var = abs(v_var(1:end-1) - v_var(2:end));
-    feature(3) = sum(omiga_mean > mean(omiga_mean)*1.2)/dat_vid.nrFramesTotal;
-    feature(4) = sum((omiga_var < mean(omiga_var)*0.8) & (omiga_mean < mean(omiga_mean)*0.8))/dat_vid.nrFramesTotal;
-    feature(5) = sum(rgb_diff)/dat_vid.nrFramesTotal;
+    feature(3) = sum(omiga_mean > mean(omiga_mean)*1.2)/totalFrames;
+    feature(4) = sum((omiga_var < mean(omiga_var)*0.8) & (omiga_mean < mean(omiga_mean)*0.8))/totalFrames;
+    feature(5) = sum(rgb_diff)/totalFrames;
 
     output = [feature;color_hist_max;color_hist_var; ...
     v_mean;s_mean;v_over;s_over;contrast;similarity; ...
