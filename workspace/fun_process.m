@@ -107,12 +107,12 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
         v_over(index) = sum(hsv(:,3)>v_mean(index)*1.5);
         
         gray_mat = zeros(256,256);
-        gray_img = reshape(rgb2gray(img),[dat_vid.height*dat_vid.width 1]);
-        hist_gray = histcounts(gray_img, 0:256);
-        for index_i = 1:256
-            for index_j = index_i:256
-                gray_mat(index_i, index_j) = hist_gray(index_i)*hist_gray(index_j);
-                gray_mat(index_j, index_i) = gray_mat(index_i, index_j);
+        gray_img = rgb2gray(img);
+        [gray_img_1, gray_img_2] = size(gray_img);
+        for index_i = 1:gray_img_1
+            for index_j = 1:gray_img_2-1
+                gray_mat(gray_img(index_i, index_j), gray_img(index_i, index_j+1)) = gray_mat(gray_img(index_i, index_j), gray_img(index_i, index_j+1)) + 1;
+                gray_mat(gray_img(index_i, index_j+1), gray_img(index_i, index_j)) = gray_mat(gray_img(index_i, index_j+1), gray_img(index_i, index_j)) + 1;
             end
         end
 
