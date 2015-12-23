@@ -1,0 +1,150 @@
+clear all;
+close all;
+clc;
+
+%% setup environment
+
+addpath('./mexopencv/');
+
+flag_install_mexopencv   =  true;
+if (flag_install_mexopencv)
+    if (isunix())
+        error('Failed to install mexopencv automatically. Please install mexopencv using make.');
+    else
+        mexopencv.make('opencv_path', 'F:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include\opencv\build');
+    end
+end
+
+flag_compile_mexprocess     =   false;
+if (flag_compile_mexprocess)
+    if (exist('fun_process.cpp', 'file'))
+        mex     -largeArrayDims -I'C:\Users\field\Desktop\opencv\build\include' -L'C:\Users\liuxj\Desktop\opencv\build\x64\vc11\lib'  -lopencv_ts300 -lopencv_world300  './fun_process.cpp' -output './fun_process';
+    else
+        error('Failed to find file fun_process.cpp.');
+    end
+end
+
+%% input data
+
+N_traindata  =   30;
+N_testdata   =   15;
+dir1 = dir('D:/1014/*.ogv');
+dir2 = dir('D:/1019/*.ogv');
+dir3 = dir('D:/1016/*.ogv');
+filenames   =   cell(N_traindata, 1);
+testnames   =   cell(N_testdata, 1);
+for times = 1:10
+    filenames{times} = ['D:/1014/' dir1(2+times).name];
+    filenames{times+10} = ['D:/1019/' dir2(27+times).name];
+    filenames{times+20} = ['D:/1016/' dir3(4+times).name];
+end
+for times = 1:5
+    testnames{times} = ['D:/1014/' dir1(15+times).name];
+    testnames{times+5} = ['D:/1019/' dir2(40+times).name];
+    testnames{times+10} = ['D:/1016/' dir3(15+times).name];
+end
+
+groups_std  =   zeros(N_traindata, 1);
+groups_std(1:10)   =   1014;
+groups_std(11:20)   =   1019;
+groups_std(21:30)   =   1016;
+load('feature.mat');
+%% process results
+
+groups_rst  =   zeros(N_traindata, 1);
+time_used   =   zeros(N_traindata, 1);
+
+prev_rst    =   -1;
+global  img_dir;
+%{
+for i_testdata = 24 : N_traindata
+    disp(['training -- i_testdata' int2str(i_testdata)]);
+    filename    =   filenames{i_testdata};
+    group_std   =   groups_std(i_testdata);
+
+    % load sample video data and full audio data
+    [dat_vid, ~]    =   mmread(filename, [1 : 10], [], false, true);
+    [~, dat_aud]    =   mmread(filename, [], [], true, false);
+
+    % convert video to images
+    img_dir     =   [filename, '_img/'];
+    if (~exist(img_dir, 'dir'))
+        mkdir(img_dir);
+        mmread(filename, [1:min(5000,dat_vid.nrFramesTotal)], [], false, false, 'saveFrame');
+    end
+    dat_vid.nrFramesTotal   =   numel(dir([img_dir, '*.jpg']));
+    dat_vid.filename        =   filename;
+
+    % call function process
+    tic;
+    [group_rst,output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst);
+    time_used(i_testdata)   =   toc / dat_vid.totalDuration;
+    groups_rst(i_testdata)  =   group_rst;
+    trainingData = [trainingData; output];
+    labelData = [labelData; group_std]; 
+    % update previous group result
+    prev_rst    =   group_std;
+    if mod(i_testdata, 5) == 0
+        save 'feature.mat' trainingData labelData
+    end
+end
+save 'feature.mat' trainingData labelData
+mysvm = cv.SVM();
+mysvm.train(double(trainingData), int32(labelData));
+groups_std  =   zeros(N_testdata, 1);
+groups_std(1:5)   =   1014;
+groups_std(6:10)   =   1019;
+groups_std(11:15)   =   1016;
+result_record = zeros(15,1);
+%}
+label1 = [ones(1,10) -ones(1,15)]'; %1014/1019,1014yes
+label2 = [-ones(1,10) ones(1,10) -ones(1,5)]'; %1014/1016 1014yes
+label3 = [-ones(1,20) ones(1,5)]'; %1019/1016 1019yes
+load('feature.mat');
+trainingData(24,2) = 0;
+mysvm1 = cv.Boost();
+mysvm1.train(double(trainingData), int32(label1));
+mysvm2 = cv.Boost();
+mysvm2.train(double(trainingData), int32(label2));
+mysvm3 = cv.Boost();
+mysvm3.train(double(trainingData), int32(label3));
+for i_testdata = 1 : N_testdata
+    disp(['predicting -- i_testdata' int2str(i_testdata)]);
+    filename    =   testnames{i_testdata};
+    group_std   =   groups_std(i_testdata);
+
+    % load sample video data and full audio data
+    [dat_vid, ~]    =   mmread(filename, [1 : 10], [], false, true);
+    [~, dat_aud]    =   mmread(filename, [], [], true, false);
+
+    % convert video to images
+    img_dir     =   [filename, '_img/'];
+    if (~exist(img_dir, 'dir'))
+        mkdir(img_dir);
+        mmread(filename, [1:min(5000,dat_vid.nrFramesTotal)], [], false, false, 'saveFrame');
+    end
+    dat_vid.nrFramesTotal   =   numel(dir([img_dir, '*.jpg']));
+    dat_vid.filename        =   filename;
+
+    % call function process
+    tic;
+    [group_rst,output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst);
+    time_used(i_testdata)   =   toc / dat_vid.totalDuration;
+    groups_rst(i_testdata)  =   group_rst;
+    result1 = mysvm1.predict(double(output))
+    result2 = mysvm2.predict(double(output))
+    result3 = mysvm3.predict(double(output))
+    %result_record(i_testdata) = result;
+    % update previous group result
+    prev_rst    =   group_std;
+end
+%% performance evaluation
+
+precision   =   mean(groups_std == groups_rst);
+disp(['Processing precision:     ', num2str(precision, '%f')]);
+disp(['Relative processing time: ', num2str(mean(time_used), '%f')]);
+
+%% post process
+if (flag_compile_mexprocess)
+    delete('fun_process.mex*');
+end
