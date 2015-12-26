@@ -2,6 +2,8 @@ clear all;
 close all;
 clc;
 
+dataset_root = 'E:/dataset';
+
 %% setup environment
 
 addpath('./mexopencv/');
@@ -26,29 +28,43 @@ end
 
 %% input data
 
-N_traindata  =   30;
-N_testdata   =   15;
-dir1 = dir('D:/1014/*.ogv');
-dir2 = dir('D:/1019/*.ogv');
-dir3 = dir('D:/1016/*.ogv');
+N_traindata  =   75;
+N_testdata   =   25;
+dir1 = dir([dataset_root '/1014/*.ogv']);
+dir2 = dir([dataset_root '/1019/*.ogv']);
+dir3 = dir([dataset_root '/1016/*.ogv']);
+dir4 = dir([dataset_root '/1017/*.ogv']);
+dir5 = dir([dataset_root '/1020/*.ogv']);
 filenames   =   cell(N_traindata, 1);
 testnames   =   cell(N_testdata, 1);
-for times = 1:10
-    filenames{times} = ['D:/1014/' dir1(2+times).name];
-    filenames{times+10} = ['D:/1019/' dir2(27+times).name];
-    filenames{times+20} = ['D:/1016/' dir3(4+times).name];
+for times = 1:15
+    filenames{times} = [dataset_root '/1014/' dir1(2+times).name];
+    filenames{times+15} = [dataset_root '/1019/' dir2(27+times).name];
+    filenames{times+30} = [dataset_root '/1016/' dir3(4+times).name];
+    filenames{times+45} = [dataset_root '/1017/' dir4(times).name];
+    filenames{times+60} = [dataset_root '/1020/' dir5(times).name];
 end
 for times = 1:5
-    testnames{times} = ['D:/1014/' dir1(15+times).name];
-    testnames{times+5} = ['D:/1019/' dir2(40+times).name];
-    testnames{times+10} = ['D:/1016/' dir3(15+times).name];
+    testnames{times} = [dataset_root '/1014/' dir1(20+times).name];
+    testnames{times+5} = [dataset_root '/1019/' dir2(40+times).name];
+    testnames{times+10} = [dataset_root '/1016/' dir3(20+times).name];
+    testnames{times+15} = [dataset_root '/1017/' dir4(40+times).name];
+    testnames{times+20} = [dataset_root '/1020/' dir5(15+times).name];
 end
 
 groups_std  =   zeros(N_traindata, 1);
-groups_std(1:10)   =   1014;
-groups_std(11:20)   =   1019;
-groups_std(21:30)   =   1016;
+groups_std(1:15)   =   1014;
+groups_std(16:30)   =   1019;
+groups_std(31:45)   =   1016;
+groups_std(46:60)   =   1017;
+groups_std(61:75)   =   1020;
+
+trainingData = zeros(75,38);
+testData = zeros(25,38);
+resultData = zeros(25,10);
+
 load('feature.mat');
+load('test.mat')
 %% process results
 
 groups_rst  =   zeros(N_traindata, 1);
@@ -56,8 +72,8 @@ time_used   =   zeros(N_traindata, 1);
 
 prev_rst    =   -1;
 global  img_dir;
-%{
-for i_testdata = 24 : N_traindata
+
+for i_testdata = 1 : 0 %N_traindata
     disp(['training -- i_testdata' int2str(i_testdata)]);
     filename    =   filenames{i_testdata};
     group_std   =   groups_std(i_testdata);
@@ -68,47 +84,55 @@ for i_testdata = 24 : N_traindata
 
     % convert video to images
     img_dir     =   [filename, '_img/'];
+    %{
     if (~exist(img_dir, 'dir'))
         mkdir(img_dir);
         mmread(filename, [1:min(5000,dat_vid.nrFramesTotal)], [], false, false, 'saveFrame');
     end
+    %}
     dat_vid.nrFramesTotal   =   numel(dir([img_dir, '*.jpg']));
     dat_vid.filename        =   filename;
 
     % call function process
     tic;
     [group_rst,output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst);
-    time_used(i_testdata)   =   toc / dat_vid.totalDuration;
+    toc
     groups_rst(i_testdata)  =   group_rst;
-    trainingData = [trainingData; output];
-    labelData = [labelData; group_std]; 
+    trainingData(i_testdata,:) = output;
     % update previous group result
     prev_rst    =   group_std;
-    if mod(i_testdata, 5) == 0
-        save 'feature.mat' trainingData labelData
+    if mod(i_testdata, 3) == 0
+        save 'feature.mat' trainingData
     end
 end
-save 'feature.mat' trainingData labelData
-mysvm = cv.SVM();
-mysvm.train(double(trainingData), int32(labelData));
+save 'feature.mat' trainingData
 groups_std  =   zeros(N_testdata, 1);
 groups_std(1:5)   =   1014;
 groups_std(6:10)   =   1019;
 groups_std(11:15)   =   1016;
 result_record = zeros(15,1);
-%}
-label1 = [ones(1,10) -ones(1,15)]'; %1014/1019,1014yes
-label2 = [-ones(1,10) ones(1,10) -ones(1,5)]'; %1014/1016 1014yes
-label3 = [-ones(1,20) ones(1,5)]'; %1019/1016 1019yes
-load('feature.mat');
-trainingData(24,2) = 0;
-mysvm1 = cv.Boost();
-mysvm1.train(double(trainingData), int32(label1));
-mysvm2 = cv.Boost();
-mysvm2.train(double(trainingData), int32(label2));
-mysvm3 = cv.Boost();
-mysvm3.train(double(trainingData), int32(label3));
-for i_testdata = 1 : N_testdata
+
+label1 = [ones(1,30) -ones(1,45)]'; %1014/1019,1014yes
+label2 = [ones(1,15) -ones(1,15) ones(1,15) -ones(1,30)]'; %1014/1016 1014yes
+label3 = [ones(1,15) -ones(1,30) ones(1,15) -ones(1,15)]'; %1019/1016 1019yes
+label4 = [ones(1,15) -ones(1,45) ones(1,15)]';
+label5 = [-ones(1,15) ones(1,30) -ones(1,30)]';
+label6 = [-ones(1,15) ones(1,15) -ones(1,15) ones(1,15) -ones(1,15)];
+label7 = [-ones(1,15) ones(1,15) -ones(1,30) ones(1,15)];
+label8 = [-ones(1,30) ones(1,30) -ones(1,15)];
+label9 = [-ones(1,30) ones(1,15) -ones(1,15) ones(1,15)];
+label10 = [-ones(1,45) ones(1,30)];
+mysvm1 = svmtrain(double(trainingData), int32(label1), 'kernel_function', 'polynomial');
+mysvm2 = svmtrain(double(trainingData), int32(label2), 'kernel_function', 'polynomial');
+mysvm3 = svmtrain(double(trainingData), int32(label3), 'kernel_function', 'polynomial');
+mysvm4 = svmtrain(double(trainingData), int32(label4), 'kernel_function', 'polynomial');
+mysvm5 = svmtrain(double(trainingData), int32(label5), 'kernel_function', 'polynomial');
+mysvm6 = svmtrain(double(trainingData), int32(label6), 'kernel_function', 'polynomial');
+mysvm7 = svmtrain(double(trainingData), int32(label7), 'kernel_function', 'polynomial');
+mysvm8 = svmtrain(double(trainingData), int32(label8), 'kernel_function', 'polynomial');
+mysvm9 = svmtrain(double(trainingData), int32(label9), 'kernel_function', 'polynomial');
+mysvm10 = svmtrain(double(trainingData), int32(label10), 'kernel_function', 'polynomial');
+for i_testdata = 13 : N_testdata
     disp(['predicting -- i_testdata' int2str(i_testdata)]);
     filename    =   testnames{i_testdata};
     group_std   =   groups_std(i_testdata);
@@ -119,10 +143,10 @@ for i_testdata = 1 : N_testdata
 
     % convert video to images
     img_dir     =   [filename, '_img/'];
-    if (~exist(img_dir, 'dir'))
-        mkdir(img_dir);
-        mmread(filename, [1:min(5000,dat_vid.nrFramesTotal)], [], false, false, 'saveFrame');
-    end
+    % if (~exist(img_dir, 'dir'))
+    %     mkdir(img_dir);
+    %     mmread(filename, [1:min(5000,dat_vid.nrFramesTotal)], [], false, false, 'saveFrame');
+    % end
     dat_vid.nrFramesTotal   =   numel(dir([img_dir, '*.jpg']));
     dat_vid.filename        =   filename;
 
@@ -131,12 +155,25 @@ for i_testdata = 1 : N_testdata
     [group_rst,output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst);
     time_used(i_testdata)   =   toc / dat_vid.totalDuration;
     groups_rst(i_testdata)  =   group_rst;
-    result1 = mysvm1.predict(double(output))
-    result2 = mysvm2.predict(double(output))
-    result3 = mysvm3.predict(double(output))
+
+    resultData(i_testdata,1) = svmclassify(mysvm1, double(output));
+    resultData(i_testdata,2) = svmclassify(mysvm2, double(output));
+    resultData(i_testdata,3) = svmclassify(mysvm3, double(output));
+    resultData(i_testdata,4) = svmclassify(mysvm4, double(output));
+    resultData(i_testdata,5) = svmclassify(mysvm5, double(output));
+    resultData(i_testdata,6) = svmclassify(mysvm6, double(output));
+    resultData(i_testdata,7) = svmclassify(mysvm7, double(output));
+    resultData(i_testdata,8) = svmclassify(mysvm8, double(output));
+    resultData(i_testdata,9) = svmclassify(mysvm9, double(output));
+    resultData(i_testdata,10) = svmclassify(mysvm10, double(output));
+    
+    testData(i_testdata,:) = output;
     %result_record(i_testdata) = result;
     % update previous group result
     prev_rst    =   group_std;
+    if mod(i_testdata, 3) == 0
+        save 'test.mat' testData resultData
+    end
 end
 %% performance evaluation
 

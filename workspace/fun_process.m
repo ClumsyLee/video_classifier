@@ -13,7 +13,7 @@
 %% edit your own code in this file, leave the function interface unmodified
 
 function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst)
-    totalFrames = min(5000, abs(dat_vid.nrFramesTotal));
+    totalFrames = min(5000, round(dat_vid.rate * dat_vid.totalDuration));
     %camera and move feature
     feature = zeros(5,1); 
     [framesPool,~] = mmread(dat_vid.filename, [1:5:totalFrames], [], false, true);
@@ -71,8 +71,8 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
     else
         feature(2) = 0;
     end
-    transform_point = [1 find(over_th == 1)'*5+1 totalFrames];
-    key_frame = uint8((transform_point(1:min(end,4)-1) + transform_point(2:min(end,4)))/2);
+    transform_point = [1 find(over_th == 1)' totalLength];
+    key_frame = round((transform_point(1:min(end,4)-1) + transform_point(2:min(end,4)))/2);
     if length(key_frame) == 1
         key_frame = [key_frame min(10,totalLength) max(1,totalLength-10)];
     elseif length(key_frame) == 2
