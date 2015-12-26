@@ -13,14 +13,20 @@
 %% edit your own code in this file, leave the function interface unmodified
 
 function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst)
-    totalFrames = min(5000, round(dat_vid.rate * dat_vid.totalDuration));
+    totalFrames = round(dat_vid.rate * dat_vid.totalDuration);
+    totalLength = length(1:5:totalFrames);
+    gap = 2001
+    onceFrames = min(gap, totalFrames);
     %camera and move feature
     feature = zeros(5,1); 
-    [framesPool,~] = mmread(dat_vid.filename, [1:5:totalFrames], [], false, true);
-    totalLength = length(framesPool.frames);
+    [framesPool,~] = mmread(dat_vid.filename, [1:5:onceFrames], [], false, true);
+    beginFrame = 1;
+    bia = 0;
+    lastFrame = length(framesPool.frames);
+    readbegin = onceFrames;
     % set group result
     group_rst   =   1006;
-
+    
     % use mexopencv to process image
     %% camera feature
 
@@ -35,18 +41,32 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
     last_rgb = reshape(last_rgb, [dat_vid.height*dat_vid.width 3]);
     v_mean_total(1) = mean(hsv(:,3));
     v_var(1) = var(double(hsv(:,3)));
-    for turn = 2:totalLength
-        %img = imread([img_dir, num2str(turn, '%06d.jpg')]);
-        img = framesPool.frames(turn).cdata;
-        hsv = reshape(cv.cvtColor(img, 'RGB2HSV'),[dat_vid.height*dat_vid.width 3]);
-        gray_img = rgb2gray(img);
-        img = reshape(img, [dat_vid.height*dat_vid.width 3]);
-        v_mean_total(turn) = mean(hsv(:,3));
-        v_var(turn) = var(double(hsv(:,3)));
-        rgb_diff(turn-1) = sqrt(sum(sum((img - last_rgb).^2)))/(dat_vid.height*dat_vid.width);
-        last_rgb = img;
-        gray_delta(turn-1) = sum(sum(abs(gray_img-last_img)));
-        last_img = gray_img;
+    while true
+        for turn = beginFrame:lastFrame
+            if turn == 1
+                continue
+            end
+            %img = imread([img_dir, num2str(turn, '%06d.jpg')]);
+            img = framesPool.frames(turn - bia).cdata;
+            hsv = reshape(cv.cvtColor(img, 'RGB2HSV'),[dat_vid.height*dat_vid.width 3]);
+            gray_img = rgb2gray(img);
+            img = reshape(img, [dat_vid.height*dat_vid.width 3]);
+            v_mean_total(turn) = mean(hsv(:,3));
+            v_var(turn) = var(double(hsv(:,3)));
+            rgb_diff(turn-1) = sqrt(sum(sum((img - last_rgb).^2)))/(dat_vid.height*dat_vid.width);
+            last_rgb = img;
+            gray_delta(turn-1) = sum(sum(abs(gray_img-last_img)));
+            last_img = gray_img;
+        end
+        if totalFrames - readbegin <= 5
+            break;
+        end
+        nextFrames = min(gap, totalFrames - readbegin + 4);
+        [framesPool,~] = mmread(dat_vid.filename, [readbegin+5:5:readbegin+4+nextFrames], [], false, true);
+        bia = lastFrame;
+        beginFrame = lastFrame + 1;
+        lastFrame = lastFrame + length(framesPool.frames);
+        readbegin = readbegin+4+nextFrames;
     end
     over_th = (gray_delta > 2*mean(gray_delta));
     over_th_last = 0;
@@ -79,7 +99,7 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
         key_frame = [key_frame floor((1+totalLength)/2)];
     end
     %% color and material feature
- 
+    [framesPool,~] = mmread(dat_vid.filename, key_frame, [], false, true);
     % static feature
     % =========================================
     color_hist_max = zeros(length(key_frame),1);
@@ -94,10 +114,9 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
     entropy = zeros(length(key_frame),1);
     correlation = zeros(length(key_frame),1);
     % =========================================
-    index = 1;
-    for frame = key_frame
+    for index = 1:length(key_frame);
         %img = imread([img_dir, num2str(frame, '%06d.jpg')]);
-        img = framesPool.frames(frame).cdata;
+        img = framesPool.frames(index).cdata;
         hsv = cv.cvtColor(img, 'RGB2HSV');
         f_hsv = hsv(:,:,1)*16+hsv(:,:,2)*4+hsv(:,:,3);
         edges = {linspace(0,8191,1024)};
@@ -130,7 +149,6 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
         energy(index) = sum(sum(gray_mat.^2));
         entropy(index) = sum(sum(gray_mat(gray_mat>0).*log2(gray_mat(gray_mat>0))));
         correlation(index) = sum(sum(gray_mat.*(linspace(1,256,256)'*ones(1,256)-miu_i).*(ones(256,1)*linspace(1,256,256)-miu_j)./sqrt(sigma_i*sigma_j)));
-        index = index + 1;
     end
 
     %% move feature
