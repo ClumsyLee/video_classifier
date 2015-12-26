@@ -92,11 +92,16 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
         feature(2) = 0;
     end
     transform_point = [1 find(over_th == 1)' totalLength];
-    key_frame = round((transform_point(1:min(end,4)-1) + transform_point(2:min(end,4)))/2);
-    if length(key_frame) == 1
-        key_frame = [key_frame min(10,totalLength) max(1,totalLength-10)];
-    elseif length(key_frame) == 2
-        key_frame = [key_frame floor((1+totalLength)/2)];
+    if length(transform_point) >= 4
+        key_frame = [floor((transform_point(2) + transform_point(1))/2), ...
+            floor((transform_point(floor(length(transform_point)/2)+1) + transform_point(floor(length(transform_point)/2)))/2), ...
+            floor((transform_point_point(end) + transform_point(end-1))/2)];
+    elseif length(transform_point) == 3
+        key_frame = [floor((transform_point(2) + transform_point(1))/2), ...
+            floor((transform_point(3) + transform_point(1))/2), ...
+            floor((transform_point(3) + transform_point(2))/2)];
+    else
+        key_frame = [floor(transform_point(2)/4).floor(transform_point(2)/2),floor(transform_point(2)*3/4)];
     end
     %% color and material feature
     [framesPool,~] = mmread(dat_vid.filename, key_frame, [], false, true);
