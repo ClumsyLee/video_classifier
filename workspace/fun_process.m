@@ -15,7 +15,7 @@
 function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst)
     totalFrames = round(dat_vid.rate * dat_vid.totalDuration);
     totalLength = length(1:5:totalFrames);
-    gap = 2001
+    gap = 2001;
     onceFrames = min(gap, totalFrames);
     %camera and move feature
     feature = zeros(5,1); 
@@ -61,7 +61,7 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
         if totalFrames - readbegin <= 5
             break;
         end
-        nextFrames = min(gap, totalFrames - readbegin + 4);
+        nextFrames = min(gap, totalFrames - readbegin - 4);
         [framesPool,~] = mmread(dat_vid.filename, [readbegin+5:5:readbegin+4+nextFrames], [], false, true);
         bia = lastFrame;
         beginFrame = lastFrame + 1;
@@ -95,7 +95,7 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
     if length(transform_point) >= 4
         key_frame = [floor((transform_point(2) + transform_point(1))/2), ...
             floor((transform_point(floor(length(transform_point)/2)+1) + transform_point(floor(length(transform_point)/2)))/2), ...
-            floor((transform_point_point(end) + transform_point(end-1))/2)];
+            floor((transform_point(end) + transform_point(end-1))/2)];
     elseif length(transform_point) == 3
         key_frame = [floor((transform_point(2) + transform_point(1))/2), ...
             floor((transform_point(3) + transform_point(1))/2), ...

@@ -13,7 +13,7 @@ if (flag_install_mexopencv)
     if (isunix())
         error('Failed to install mexopencv automatically. Please install mexopencv using make.');
     else
-        mexopencv.make('opencv_path', 'F:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\include\opencv\build');
+        mexopencv.make('opencv_path', 'D:\Libraries\opencv\build');
     end
 end
 
@@ -28,7 +28,7 @@ end
 
 %% input data
 
-N_traindata  =   75;
+N_traindata  =   200;
 N_testdata   =   25;
 dir1 = dir([dataset_root '/1014/*.ogv']);
 dir2 = dir([dataset_root '/1019/*.ogv']);
@@ -37,34 +37,28 @@ dir4 = dir([dataset_root '/1017/*.ogv']);
 dir5 = dir([dataset_root '/1020/*.ogv']);
 filenames   =   cell(N_traindata, 1);
 testnames   =   cell(N_testdata, 1);
-for times = 1:15
-    filenames{times} = [dataset_root '/1014/' dir1(2+times).name];
-    filenames{times+15} = [dataset_root '/1019/' dir2(27+times).name];
-    filenames{times+30} = [dataset_root '/1016/' dir3(4+times).name];
-    filenames{times+45} = [dataset_root '/1017/' dir4(times).name];
-    filenames{times+60} = [dataset_root '/1020/' dir5(times).name];
+for times = 1:N_traindata/5
+    filenames{times} = [dataset_root '/1014/' dir1(times).name];
+    filenames{times+N_traindata/5} = [dataset_root '/1019/' dir2(times).name];
+    filenames{times+N_traindata*2/5} = [dataset_root '/1016/' dir3(times).name];
+    filenames{times+N_traindata*3/5} = [dataset_root '/1017/' dir4(times).name];
+    filenames{times+N_traindata*4/5} = [dataset_root '/1020/' dir5(times).name];
 end
 for times = 1:5
-    testnames{times} = [dataset_root '/1014/' dir1(20+times).name];
+    testnames{times} = [dataset_root '/1014/' dir1(40+times).name];
     testnames{times+5} = [dataset_root '/1019/' dir2(40+times).name];
-    testnames{times+10} = [dataset_root '/1016/' dir3(20+times).name];
+    testnames{times+10} = [dataset_root '/1016/' dir3(40+times).name];
     testnames{times+15} = [dataset_root '/1017/' dir4(40+times).name];
-    testnames{times+20} = [dataset_root '/1020/' dir5(15+times).name];
+    testnames{times+20} = [dataset_root '/1020/' dir5(40+times).name];
 end
-
-groups_std  =   zeros(N_traindata, 1);
-groups_std(1:15)   =   1014;
-groups_std(16:30)   =   1019;
-groups_std(31:45)   =   1016;
-groups_std(46:60)   =   1017;
-groups_std(61:75)   =   1020;
-
-trainingData = zeros(75,38);
-testData = zeros(25,38);
-resultData = zeros(25,10);
+HLLLL  =   zeros(N_traindata, 1);
+%{
+trainingData = zeros(N_traindata,38);
+%}
+testData = zeros(N_testdata,38);
+resultData = zeros(N_testdata,10);
 
 load('feature.mat');
-load('test.mat')
 %% process results
 
 groups_rst  =   zeros(N_traindata, 1);
@@ -73,7 +67,7 @@ time_used   =   zeros(N_traindata, 1);
 prev_rst    =   -1;
 global  img_dir;
 
-for i_testdata = 1 : 0 %N_traindata
+for i_testdata = 40 : N_traindata
     disp(['training -- i_testdata' int2str(i_testdata)]);
     filename    =   filenames{i_testdata};
     group_std   =   groups_std(i_testdata);
@@ -112,16 +106,16 @@ groups_std(6:10)   =   1019;
 groups_std(11:15)   =   1016;
 result_record = zeros(15,1);
 
-label1 = [ones(1,30) -ones(1,45)]'; %1014/1019,1014yes
-label2 = [ones(1,15) -ones(1,15) ones(1,15) -ones(1,30)]'; %1014/1016 1014yes
-label3 = [ones(1,15) -ones(1,30) ones(1,15) -ones(1,15)]'; %1019/1016 1019yes
-label4 = [ones(1,15) -ones(1,45) ones(1,15)]';
-label5 = [-ones(1,15) ones(1,30) -ones(1,30)]';
-label6 = [-ones(1,15) ones(1,15) -ones(1,15) ones(1,15) -ones(1,15)];
-label7 = [-ones(1,15) ones(1,15) -ones(1,30) ones(1,15)];
-label8 = [-ones(1,30) ones(1,30) -ones(1,15)];
-label9 = [-ones(1,30) ones(1,15) -ones(1,15) ones(1,15)];
-label10 = [-ones(1,45) ones(1,30)];
+label1 = [ones(1,2*N_traindata/5) -ones(1,3*N_traindata/5)]'; %1014/1019,1014yes
+label2 = [ones(1,N_traindata/5) -ones(1,1*N_traindata/5) ones(1,1*N_traindata/5) -ones(1,2*N_traindata/5)]'; %1014/1016 1014yes
+label3 = [ones(1,N_traindata/5) -ones(1,2*N_traindata/5) ones(1,1*N_traindata/5) -ones(1,1*N_traindata/5)]'; %1019/1016 1019yes
+label4 = [ones(1,1*N_traindata/5) -ones(1,3*N_traindata/5) ones(1,1*N_traindata/5)]';
+label5 = [-ones(1,1*N_traindata/5) ones(1,2*N_traindata/5) -ones(1,2*N_traindata/5)]';
+label6 = [-ones(1,1*N_traindata/5) ones(1,1*N_traindata/5) -ones(1,1*N_traindata/5) ones(1,1*N_traindata/5) -ones(1,1*N_traindata/5)];
+label7 = [-ones(1,1*N_traindata/5) ones(1,1*N_traindata/5) -ones(1,2*N_traindata/5) ones(1,1*N_traindata/5)];
+label8 = [-ones(1,2*N_traindata/5) ones(1,2*N_traindata/5) -ones(1,1*N_traindata/5)];
+label9 = [-ones(1,2*N_traindata/5) ones(1,1*N_traindata/5) -ones(1,1*N_traindata/5) ones(1,1*N_traindata/5)];
+label10 = [-ones(1,3*N_traindata/5) ones(1,2*N_traindata/5)];
 mysvm1 = svmtrain(double(trainingData), int32(label1), 'kernel_function', 'polynomial');
 mysvm2 = svmtrain(double(trainingData), int32(label2), 'kernel_function', 'polynomial');
 mysvm3 = svmtrain(double(trainingData), int32(label3), 'kernel_function', 'polynomial');
@@ -132,7 +126,7 @@ mysvm7 = svmtrain(double(trainingData), int32(label7), 'kernel_function', 'polyn
 mysvm8 = svmtrain(double(trainingData), int32(label8), 'kernel_function', 'polynomial');
 mysvm9 = svmtrain(double(trainingData), int32(label9), 'kernel_function', 'polynomial');
 mysvm10 = svmtrain(double(trainingData), int32(label10), 'kernel_function', 'polynomial');
-for i_testdata = 13 : N_testdata
+for i_testdata = 1 : N_testdata
     disp(['predicting -- i_testdata' int2str(i_testdata)]);
     filename    =   testnames{i_testdata};
     group_std   =   groups_std(i_testdata);
@@ -153,7 +147,7 @@ for i_testdata = 13 : N_testdata
     % call function process
     tic;
     [group_rst,output]   =   fun_process(dat_vid, dat_aud, img_dir, prev_rst);
-    time_used(i_testdata)   =   toc / dat_vid.totalDuration;
+    toc;
     groups_rst(i_testdata)  =   group_rst;
 
     resultData(i_testdata,1) = svmclassify(mysvm1, double(output));
@@ -176,10 +170,10 @@ for i_testdata = 13 : N_testdata
     end
 end
 %% performance evaluation
-
-precision   =   mean(groups_std == groups_rst);
-disp(['Processing precision:     ', num2str(precision, '%f')]);
-disp(['Relative processing time: ', num2str(mean(time_used), '%f')]);
+save 'test.mat' testData resultData
+%precision   =   mean(groups_std == groups_rst);
+%disp(['Processing precision:     ', num2str(precision, '%f')]);
+%disp(['Relative processing time: ', num2str(mean(time_used), '%f')]);
 
 %% post process
 if (flag_compile_mexprocess)
