@@ -101,7 +101,7 @@ function    [group_rst, output]   =   fun_process(dat_vid, dat_aud, img_dir, pre
             floor((transform_point(3) + transform_point(1))/2), ...
             floor((transform_point(3) + transform_point(2))/2)];
     else
-        key_frame = [floor(transform_point(2)/4).floor(transform_point(2)/2),floor(transform_point(2)*3/4)];
+        key_frame = [floor(transform_point(2)/4),floor(transform_point(2)/2),floor(transform_point(2)*3/4)];
     end
     %% color and material feature
     [framesPool,~] = mmread(dat_vid.filename, key_frame, [], false, true);
